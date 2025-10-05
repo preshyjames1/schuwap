@@ -125,7 +125,7 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
               disabled={isLoading}
               className="lowercase"
             />
-            <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.com</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.xyz</span>
           </div>
         </div>
         <div className="space-y-2">

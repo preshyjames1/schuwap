@@ -31,11 +31,11 @@ export async function getSchoolBySubdomain(subdomain: string) {
  // const isProduction = typeof window !== "undefined" && window.location.hostname !== "localhost"
 
   //if (isProduction) {
-  //  return `https://${subdomain}.schuwap.com${path}`
+  //  return `https://${subdomain}.schuwap.xyz${path}`
   //}
 export function constructSubdomainUrl(subdomain: string, path = "/"): string {
   const baseUrl = process.env.NODE_ENV === 'production'
-    ? `https://${subdomain}.schuwap.com`
+    ? `https://${subdomain}.schuwap.xyz`
     : 'http://localhost:3000';
 
   return `${baseUrl}${path}`;

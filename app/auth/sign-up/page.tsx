@@ -78,14 +78,14 @@ export default function SignUpPage() {
       }
 
       // For development, use the dev redirect URL
-      // For production, construct the subdomain URL (e.g., https://kingscollege.schuwap.com/onboarding)
+      // For production, construct the subdomain URL (e.g., https://kingscollege.schuwap.xyz/onboarding)
       //const isProduction = window.location.hostname !== "localhost"
      // const redirectUrl =
      //   process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-     //   (`https://${formData.subdomain}.schuwap.com/onboarding`)
+     //   (`https://${formData.subdomain}.schuwap.xyz/onboarding`)
 
       const redirectUrl = process.env.NODE_ENV === 'production'
-  ? `https://${formData.subdomain}.schuwap.com/onboarding`
+  ? `https://${formData.subdomain}.schuwap.xyz/onboarding`
   : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL;
 
       // Create auth user with metadata
@@ -161,7 +161,7 @@ export default function SignUpPage() {
                             disabled={isLoading}
                             className="lowercase"
                           />
-                          <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.com</span>
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.xyz</span>
                         </div>
                       </div>
                     </div>
