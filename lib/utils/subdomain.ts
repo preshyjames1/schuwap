@@ -27,13 +27,19 @@ export async function getSchoolBySubdomain(subdomain: string) {
   return school
 }
 
+//export function constructSubdomainUrl(subdomain: string, path = "/"): string {
+ // const isProduction = typeof window !== "undefined" && window.location.hostname !== "localhost"
+
+  //if (isProduction) {
+  //  return `https://${subdomain}.schuwap.com${path}`
+  //}
 export function constructSubdomainUrl(subdomain: string, path = "/"): string {
-  const isProduction = typeof window !== "undefined" && window.location.hostname !== "localhost"
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? `https://${subdomain}.schuwap.com`
+    : 'http://localhost:3000';
 
-  if (isProduction) {
-    return `https://${subdomain}.schuwap.com${path}`
-  }
-
-  // For development, return localhost URL
-  return `http://localhost:3000${path}`
+  return `${baseUrl}${path}`;
 }
+ // // For development, return localhost URL
+ // return `http://localhost:3000${path}`
+//}
