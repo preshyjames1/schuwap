@@ -79,10 +79,10 @@ export default function SignUpPage() {
 
       // For development, use the dev redirect URL
       // For production, construct the subdomain URL (e.g., https://kingscollege.schuwap.com/onboarding)
-      const isProduction = window.location.hostname !== "localhost"
+      //const isProduction = window.location.hostname !== "localhost"
       const redirectUrl =
         process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-        (isProduction ? `https://${formData.subdomain}.schuwap.com/onboarding` : `${window.location.origin}/onboarding`)
+        (`https://${formData.subdomain}.schuwap.com/onboarding`)
 
       // Create auth user with metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
