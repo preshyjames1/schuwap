@@ -85,7 +85,7 @@ export default function SignUpPage() {
      //   (`https://${formData.subdomain}.schuwap.xyz/onboarding`)
 
   const redirectUrl = process.env.NODE_ENV === 'production'
-  ? `https://schuwap.xyz/auth/confirm`
+  ? `https://${formData.subdomain}.schuwap.xyz/auth/confirm`
   : `http://localhost:3000/auth/confirm`;
 
 
