@@ -77,15 +77,9 @@ export default function SignUpPage() {
         return
       }
 
-      // For development, use the dev redirect URL
-      // For production, construct the subdomain URL (e.g., https://kingscollege.schuwap.xyz/onboarding)
-      //const isProduction = window.location.hostname !== "localhost"
-     // const redirectUrl =
-     //   process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-     //   (`https://${formData.subdomain}.schuwap.xyz/onboarding`)
-
+      
   const redirectUrl = process.env.NODE_ENV === 'production'
-  ? `https://${formData.subdomain}.schuwap.xyz/auth/confirm`
+  ? `https://schuwap.xyz/auth/confirm`
   : `http://localhost:3000/auth/confirm`;
 
 
