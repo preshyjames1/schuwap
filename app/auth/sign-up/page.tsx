@@ -86,7 +86,8 @@ export default function SignUpPage() {
 
   const redirectUrl = process.env.NODE_ENV === 'production'
   ? `https://schuwap.xyz/auth/confirm`
-  : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL;
+  : `http://localhost:3000/auth/confirm`;
+
 
       // Create auth user with metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
