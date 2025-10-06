@@ -79,8 +79,8 @@ export default function SignUpPage() {
 
       
   const redirectUrl = process.env.NODE_ENV === 'production'
-  ? `https://schuwap.xyz/auth/confirm`
-  : `http://localhost:3000/auth/confirm`;
+   ? `https://schuwap.xyz/auth/callback`
+  : `http://localhost:3000/auth/callback`;
 
 
       // Create auth user with metadata
