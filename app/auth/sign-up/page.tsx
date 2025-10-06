@@ -84,8 +84,8 @@ export default function SignUpPage() {
      //   process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
      //   (`https://${formData.subdomain}.schuwap.xyz/onboarding`)
 
-      const redirectUrl = process.env.NODE_ENV === 'production'
-  ? `https://${formData.subdomain}.schuwap.xyz/onboarding`
+  const redirectUrl = process.env.NODE_ENV === 'production'
+  ? `https://schuwap.xyz/auth/confirm`
   : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL;
 
       // Create auth user with metadata
@@ -100,6 +100,7 @@ export default function SignUpPage() {
             school_name: formData.schoolName,
             subdomain: formData.subdomain,
             phone: formData.phone,
+            
           },
         },
       })
