@@ -35,7 +35,7 @@ export default function OnboardingPage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        router.push("/auth/login")
+        router.push("/auth/sign-up")
         return
       }
 

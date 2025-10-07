@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react" // Import useState
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Sparkles } from "lucide-react"
+import { createClient } from "@/lib/supabase/client" // Import Supabase client
 
 interface CompletionStepProps {
   schoolId: string
@@ -11,16 +12,42 @@ interface CompletionStepProps {
 
 export function CompletionStep({ schoolId }: CompletionStepProps) {
   const router = useRouter()
+  const [subdomain, setSubdomain] = useState<string | null>(null)
 
   useEffect(() => {
-    // Auto-redirect after 3 seconds
-    const timer = setTimeout(() => {
-      router.push("/dashboard")
-    }, 3000)
+    const getSubdomainAndRedirect = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    return () => clearTimeout(timer)
+      if (user?.user_metadata.subdomain) {
+        const schoolSubdomain = user.user_metadata.subdomain
+        setSubdomain(schoolSubdomain)
+        
+        // Construct the full URL for the redirect
+        const redirectUrl = process.env.NODE_ENV === 'production'
+          ? `https://${schoolSubdomain}.schuwap.xyz/dashboard`
+          : `http://localhost:3000/dashboard` // For local testing, subdomains are harder
+
+        // Auto-redirect after 3 seconds
+        const timer = setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 3000)
+
+        return () => clearTimeout(timer)
+      }
+    }
+
+    getSubdomainAndRedirect()
   }, [router])
 
+  const handleRedirect = () => {
+    if (subdomain) {
+      const redirectUrl = process.env.NODE_ENV === 'production'
+        ? `https://${subdomain}.schuwap.xyz/dashboard`
+        : `http://localhost:3000/dashboard`
+      window.location.href = redirectUrl;
+    }
+  }
   return (
     <div className="text-center space-y-6 py-8">
       <div className="flex justify-center">

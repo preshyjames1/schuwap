@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react" // Import useEffect
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,7 +27,25 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
     country: "Nigeria",
   })
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with loading true
+
+  // Fetch user metadata on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setFormData(prev => ({
+          ...prev,
+          name: user.user_metadata.school_name || "",
+          subdomain: user.user_metadata.subdomain || "",
+          phone: user.user_metadata.phone || "",
+        }))
+      }
+      setIsLoading(false)
+    }
+    fetchUserData()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({
@@ -41,25 +58,18 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-
     const supabase = createClient()
 
     try {
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
-
-      // Get user metadata from signup
-      const metadata = user.user_metadata
 
       // Create school
       const { data: school, error: schoolError } = await supabase
         .from("schools")
         .insert({
-          name: formData.name || metadata.school_name,
-          subdomain: formData.subdomain || metadata.subdomain,
+          name: formData.name,
+          subdomain: formData.subdomain,
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
@@ -71,21 +81,19 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
         })
         .select()
         .single()
-
       if (schoolError) throw schoolError
 
       // Create profile for the user
       const { error: profileError } = await supabase.from("profiles").insert({
         id: user.id,
         school_id: school.id,
-        first_name: metadata.first_name,
-        last_name: metadata.last_name,
+        first_name: user.user_metadata.first_name,
+        last_name: user.user_metadata.last_name,
         email: user.email!,
-        phone: metadata.phone,
+        phone: user.user_metadata.phone,
         role: "school_admin",
         is_active: true,
       })
-
       if (profileError) throw profileError
 
       onSchoolCreated(school.id)
@@ -97,6 +105,10 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
     }
   }
 
+  if (isLoading) {
+    return <div>Loading user data...</div>
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
@@ -105,11 +117,9 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
           <Input
             id="name"
             name="name"
-            placeholder="Kings College"
-            required
             value={formData.name}
-            onChange={handleChange}
-            disabled={isLoading}
+            readOnly // Make read-only
+            className="bg-gray-100"
           />
         </div>
         <div className="space-y-2">
@@ -118,12 +128,9 @@ export function SchoolInfoStep({ onNext, onSchoolCreated }: SchoolInfoStepProps)
             <Input
               id="subdomain"
               name="subdomain"
-              placeholder="kingscollege"
-              required
               value={formData.subdomain}
-              onChange={handleChange}
-              disabled={isLoading}
-              className="lowercase"
+              readOnly // Make read-only
+              className="lowercase bg-gray-100"
             />
             <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.xyz</span>
           </div>
