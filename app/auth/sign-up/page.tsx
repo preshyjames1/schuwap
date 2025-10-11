@@ -95,14 +95,21 @@ export default function SignUpPage() {
             school_name: formData.schoolName,
             subdomain: formData.subdomain,
             phone: formData.phone,
-            
           },
         },
       })
 
       if (authError) throw authError
 
-      router.push("/auth/sign-up-success")
+      // Check if email confirmation is required
+      if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
+        // Email already exists
+        setError("An account with this email already exists")
+        return
+      }
+
+      // Redirect to onboarding (email confirmation is disabled)
+      router.push("/onboarding")
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
