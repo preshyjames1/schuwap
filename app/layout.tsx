@@ -7,13 +7,13 @@ import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Schu - School Management System",
+  title: "Schuwap - School Management System",
   description: "Complete school management solution for Nigerian schools",
   generator: "v0.app",
-icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
+  icons: {
+  icon: "/favicon.ico",
+  shortcut: "/favicon-16x16.png",
+  apple: "/apple-touch-icon.png",
   },
 }
 
