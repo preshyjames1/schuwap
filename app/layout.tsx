@@ -7,7 +7,7 @@ import { Suspense } from "react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Schuwap - School Management System",
+  title: "Schu - School Management System",
   description: "Complete school management solution for Nigerian schools",
   generator: "v0.app",
 icons: {
