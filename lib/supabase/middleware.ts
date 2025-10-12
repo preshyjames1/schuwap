@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
   requestHeaders.set("x-subdomain", subdomain)
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/error", "/auth/sign-up-success"]
+  const publicRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/error", "/auth/sign-up-success", "/auth/callback"]
   const isPublicRoute = publicRoutes.includes(request.nextUrl.pathname)
 
   // Redirect unauthenticated users to login
