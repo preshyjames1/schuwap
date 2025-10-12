@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: "Schuwap - School Management System",
   description: "Complete school management solution for Nigerian schools",
   generator: "v0.app",
+icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
 }
 
 export default function RootLayout({

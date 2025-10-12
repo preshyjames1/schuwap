@@ -194,3 +194,11 @@ ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grading_systems ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grades ENABLE ROW LEVEL SECURITY;
+
+-- Add the foreign key relationship from students to classes
+-- This is done here because the 'classes' table is created in this file.
+ALTER TABLE public.students
+ADD CONSTRAINT students_current_class_id_fkey
+FOREIGN KEY (current_class_id)
+REFERENCES public.classes(id)
+ON DELETE SET NULL;
