@@ -28,6 +28,9 @@ import {
   LogOut,
   Menu,
   Bell,
+  User,
+  Heart,
+  Briefcase,
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -50,7 +53,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: true },
-    { name: "Students", href: "/dashboard/students", icon: Users, show: canManageStudents() },
+    { name: "Students", href: "/dashboard/students", icon: GraduationCap, show: canManageStudents() },
+    { name: "Teachers", href: "/dashboard/teachers", icon: Users, show: canManageSchool() },
+    { name: "Parents", href: "/dashboard/parents", icon: Heart, show: canManageSchool() },
+    { name: "Staff", href: "/dashboard/staff", icon: Briefcase, show: canManageSchool() },
     { name: "Academics", href: "/dashboard/academics", icon: BookOpen, show: canManageAcademics() },
     { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, show: canManageAcademics() },
     { name: "Finances", href: "/dashboard/finances", icon: DollarSign, show: canManageFinances() },
@@ -88,7 +94,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {navigation
               .filter((item) => item.show)
               .map((item) => {
-                const isActive = pathname === item.href
+                const isActive = pathname.startsWith(item.href)
                 return (
                   <Link
                     key={item.name}
@@ -158,7 +164,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Menu className="h-6 w-6" />
               </Button>
               <h1 className="text-2xl font-bold text-gray-900">
-                {navigation.find((item) => item.href === pathname)?.name || "Dashboard"}
+                {navigation.find((item) => pathname.startsWith(item.href))?.name || "Dashboard"}
               </h1>
             </div>
             <div className="flex items-center gap-2">
