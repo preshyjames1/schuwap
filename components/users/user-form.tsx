@@ -5,14 +5,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import type { UserRole } from "@/lib/types/database"
+import { TeacherForm } from "./teacher-form"
+import { ParentForm } from "./parent-form"
+import { StaffForm } from "./staff-form"
 
 interface UserFormProps {
   schoolId: string
@@ -30,9 +29,13 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
     email: userProfile?.email || "",
     phone: userProfile?.phone || "",
     // Teacher-specific fields
-    employeeId: userProfile?.teachers?.[0]?.employee_id || "",
+    employeeId: userProfile?.teachers?.[0]?.employee_id || userProfile?.staff?.[0]?.employee_id || "",
     qualification: userProfile?.teachers?.[0]?.qualification || "",
     specialization: userProfile?.teachers?.[0]?.specialization || "",
+    // Parent-specific fields
+    occupation: userProfile?.parents?.[0]?.occupation || "",
+    // Staff-specific fields
+    role: userProfile?.staff?.[0]?.role || "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +62,7 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
         is_active: true,
       }
 
-      let userId = userProfile?.id;
+      let userId = userProfile?.id
 
       if (userProfile) {
         // Update existing user profile
@@ -72,38 +75,70 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
           password: "password", // Set a temporary password
           options: {
             data: {
-                first_name: formData.firstName,
-                last_name: formData.lastName,
-            }
-          }
-        });
-        if (authError) throw authError;
-        if (!data.user) throw new Error("Could not create user");
-        
-        userId = data.user.id;
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+            },
+          },
+        })
+        if (authError) throw authError
+        if (!data.user) throw new Error("Could not create user")
+
+        userId = data.user.id
 
         // Now create the profile
-        const { error: insertError } = await supabase.from("profiles").insert({ ...profileData, id: userId });
+        const { error: insertError } = await supabase.from("profiles").insert({ ...profileData, id: userId })
         if (insertError) throw insertError
       }
-      
-      // If the role is a teacher, update the teachers table
-      if (role === 'teacher') {
-          const teacherData = {
-              school_id: schoolId,
-              user_id: userId,
-              employee_id: formData.employeeId,
-              qualification: formData.qualification,
-              specialization: formData.specialization
-          };
 
-          if(userProfile?.teachers?.[0]?.id) {
-            const { error: teacherError } = await supabase.from('teachers').update(teacherData).eq('id', userProfile.teachers[0].id);
-            if(teacherError) throw teacherError;
-          } else {
-            const { error: teacherError } = await supabase.from('teachers').insert(teacherData);
-            if(teacherError) throw teacherError;
-          }
+      if (role === "teacher") {
+        const teacherData = {
+          school_id: schoolId,
+          user_id: userId,
+          employee_id: formData.employeeId,
+          qualification: formData.qualification,
+          specialization: formData.specialization,
+        }
+
+        if (userProfile?.teachers?.[0]?.id) {
+          const { error: teacherError } = await supabase.from("teachers").update(teacherData).eq("id", userProfile.teachers[0].id)
+          if (teacherError) throw teacherError
+        } else {
+          const { error: teacherError } = await supabase.from("teachers").insert(teacherData)
+          if (teacherError) throw teacherError
+        }
+      }
+
+      if (role === "parent") {
+        const parentData = {
+          school_id: schoolId,
+          user_id: userId,
+          occupation: formData.occupation,
+        }
+
+        if (userProfile?.parents?.[0]?.id) {
+          const { error: parentError } = await supabase.from("parents").update(parentData).eq("id", userProfile.parents[0].id)
+          if (parentError) throw parentError
+        } else {
+          const { error: parentError } = await supabase.from("parents").insert(parentData)
+          if (parentError) throw parentError
+        }
+      }
+
+      if (role === "staff") {
+        const staffData = {
+          school_id: schoolId,
+          user_id: userId,
+          employee_id: formData.employeeId,
+          role: formData.role,
+        }
+
+        if (userProfile?.staff?.[0]?.id) {
+          const { error: staffError } = await supabase.from("staff").update(staffData).eq("id", userProfile.staff[0].id)
+          if (staffError) throw staffError
+        } else {
+          const { error: staffError } = await supabase.from("staff").insert(staffData)
+          if (staffError) throw staffError
+        }
       }
 
       router.push(`/dashboard/${role}s`)
@@ -112,6 +147,19 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const renderForm = () => {
+    switch (role) {
+      case "teacher":
+        return <TeacherForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+      case "parent":
+        return <ParentForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+      case "staff":
+        return <StaffForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+      default:
+        return null
     }
   }
 
@@ -125,57 +173,7 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
-              <Input id="firstName" name="firstName" required value={formData.firstName} onChange={handleChange} disabled={isLoading} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
-              <Input id="lastName" name="lastName" required value={formData.lastName} onChange={handleChange} disabled={isLoading} />
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} disabled={isLoading || !!userProfile} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isLoading} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {role === 'teacher' && (
-        <Card>
-            <CardHeader>
-                <CardTitle>Teacher Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="employeeId">Employee ID *</Label>
-                        <Input id="employeeId" name="employeeId" required value={formData.employeeId} onChange={handleChange} disabled={isLoading} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="qualification">Qualification</Label>
-                        <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleChange} disabled={isLoading} />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="specialization">Specialization</Label>
-                        <Input id="specialization" name="specialization" value={formData.specialization} onChange={handleChange} disabled={isLoading} />
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-      )}
+      {renderForm()}
 
       {error && (
         <Alert variant="destructive">
