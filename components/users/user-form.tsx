@@ -5,13 +5,15 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import type { UserRole } from "@/lib/types/database"
-import { TeacherForm } from "./teacher-form"
-import { ParentForm } from "./parent-form"
-import { StaffForm } from "./staff-form"
+import { PassportUpload } from "@/components/ui/passport-upload"
 
 interface UserFormProps {
   schoolId: string
@@ -30,6 +32,9 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
     lastName: userProfile?.last_name || "",
     email: userProfile?.email || "",
     phone: userProfile?.phone || "",
+    dateOfBirth: userProfile?.date_of_birth || "",
+    gender: userProfile?.gender || "male",
+    address: userProfile?.address || "",
     // Teacher-specific fields
     employeeId: userProfile?.teachers?.[0]?.employee_id || userProfile?.staff?.[0]?.employee_id || "",
     qualification: userProfile?.teachers?.[0]?.qualification || "",
@@ -38,7 +43,9 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
     occupation: userProfile?.parents?.[0]?.occupation || "",
     // Staff-specific fields
     role: userProfile?.staff?.[0]?.role || "",
-    photoUrl: userProfile?.photo_url || null,
+    photoUrl: userProfile?.avatar_url || null,
+    classId: "",
+    subjectId: "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,6 +82,9 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
         last_name: formData.lastName,
         email: formData.email,
         phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        address: formData.address,
         role: role,
         is_active: true,
         avatar_url: formData.photoUrl,
@@ -124,6 +134,18 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
           const { error: teacherError } = await supabase.from("teachers").insert(teacherData)
           if (teacherError) throw teacherError
         }
+
+        if (formData.classId) {
+          await supabase.from("classes").update({ class_teacher_id: userId }).eq("id", formData.classId)
+        }
+        if (formData.subjectId) {
+          await supabase.from("class_subjects").insert({
+            school_id: schoolId,
+            class_id: formData.classId,
+            subject_id: formData.subjectId,
+            teacher_id: userId,
+          })
+        }
       }
 
       if (role === "parent") {
@@ -168,46 +190,6 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
     }
   }
 
-  const renderForm = () => {
-    switch (role) {
-      case "teacher":
-        return (
-          <TeacherForm
-            formData={formData}
-            handleChange={handleChange}
-            handleSelectChange={handleSelectChange}
-            handlePhotoUpload={handlePhotoUpload}
-            isLoading={isLoading}
-            userProfile={userProfile}
-            classes={classes}
-            subjects={subjects}
-          />
-        )
-      case "parent":
-        return (
-          <ParentForm
-            formData={formData}
-            handleChange={handleChange}
-            handlePhotoUpload={handlePhotoUpload}
-            isLoading={isLoading}
-            userProfile={userProfile}
-          />
-        )
-      case "staff":
-        return (
-          <StaffForm
-            formData={formData}
-            handleChange={handleChange}
-            handlePhotoUpload={handlePhotoUpload}
-            isLoading={isLoading}
-            userProfile={userProfile}
-          />
-        )
-      default:
-        return null
-    }
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center gap-4">
@@ -218,7 +200,146 @@ export function UserForm({ schoolId, userProfile, role, classes, subjects }: Use
         </Button>
       </div>
 
-      {renderForm()}
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <PassportUpload url={formData.photoUrl} onUpload={handlePhotoUpload} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input id="firstName" name="firstName" required value={formData.firstName} onChange={handleChange} disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input id="lastName" name="lastName" required value={formData.lastName} onChange={handleChange} disabled={isLoading} />
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input id="email" name="email" type="email" required value={formData.email} onChange={handleChange} disabled={isLoading || !!userProfile} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isLoading} />
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input id="dateOfBirth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Select onValueChange={(value) => handleSelectChange("gender", value)} value={formData.gender}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Input id="address" name="address" value={formData.address} onChange={handleChange} disabled={isLoading} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {role === "teacher" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Teacher Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="employeeId">Employee ID *</Label>
+                <Input id="employeeId" name="employeeId" required value={formData.employeeId} onChange={handleChange} disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="qualification">Qualification</Label>
+                <Input id="qualification" name="qualification" value={formData.qualification} onChange={handleChange} disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <Input id="specialization" name="specialization" value={formData.specialization} onChange={handleChange} disabled={isLoading} />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="classId">Assign Class</Label>
+                <Select onValueChange={(value) => handleSelectChange("classId", value)} value={formData.classId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subjectId">Assign Subject</Label>
+                <Select onValueChange={(value) => handleSelectChange("subjectId", value)} value={formData.subjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {role === "parent" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Parent Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="occupation">Occupation</Label>
+              <Input id="occupation" name="occupation" value={formData.occupation} onChange={handleChange} disabled={isLoading} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {role === "staff" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Staff Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="employeeId">Employee ID *</Label>
+                <Input id="employeeId" name="employeeId" required value={formData.employeeId} onChange={handleChange} disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Input id="role" name="role" value={formData.role} onChange={handleChange} disabled={isLoading} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert variant="destructive">

@@ -44,7 +44,7 @@ export default async function StaffPage() {
           <p className="text-muted-foreground">Manage all staff in your school</p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/users/new">
+          <Link href="/dashboard/users/new?role=staff">
             <Plus className="h-4 w-4 mr-2" />
             Add Staff
           </Link>
