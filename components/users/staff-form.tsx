@@ -4,6 +4,7 @@ import type React from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PassportUpload } from "@/components/ui/passport-upload"
 
 interface StaffFormProps {
   formData: {
@@ -13,13 +14,15 @@ interface StaffFormProps {
     phone: string
     employeeId: string
     role: string
+    photoUrl: string | null
   }
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  handlePhotoUpload: (url: string) => void
   isLoading: boolean
   userProfile?: any
 }
 
-export function StaffForm({ formData, handleChange, isLoading, userProfile }: StaffFormProps) {
+export function StaffForm({ formData, handleChange, handlePhotoUpload, isLoading, userProfile }: StaffFormProps) {
   return (
     <>
       <Card>
@@ -27,6 +30,7 @@ export function StaffForm({ formData, handleChange, isLoading, userProfile }: St
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PassportUpload url={formData.photoUrl} onUpload={handlePhotoUpload} />
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name *</Label>

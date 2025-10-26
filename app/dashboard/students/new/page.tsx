@@ -26,6 +26,13 @@ export default async function NewStudentPage() {
     .eq("school_id", profile.school_id)
     .order("name")
 
+  // Get parents for dropdown
+  const { data: parents } = await supabase
+    .from("parents")
+    .select("id, first_name, last_name")
+    .eq("school_id", profile.school_id)
+    .order("last_name")
+
   return (
     <div className="space-y-6">
       <div>
@@ -33,7 +40,7 @@ export default async function NewStudentPage() {
         <p className="text-muted-foreground">Enter student information to create a new record</p>
       </div>
 
-      <StudentForm schoolId={profile.school_id} classes={classes || []} />
+      <StudentForm schoolId={profile.school_id} classes={classes || []} parents={parents || []} />
     </div>
   )
 }

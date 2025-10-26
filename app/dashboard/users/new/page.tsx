@@ -22,6 +22,10 @@ export default async function NewUserPage({ searchParams }: { searchParams: { ro
 
   const role = searchParams.role || "teacher";
 
+  const { data: classes } = await supabase.from("classes").select("id, name").eq("school_id", profile.school_id);
+
+  const { data: subjects } = await supabase.from("subjects").select("id, name").eq("school_id", profile.school_id);
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,7 +33,7 @@ export default async function NewUserPage({ searchParams }: { searchParams: { ro
         <p className="text-muted-foreground">Enter the user's information to create a new record</p>
       </div>
 
-      <UserForm schoolId={profile.school_id} role={role} />
+      <UserForm schoolId={profile.school_id} role={role} classes={classes || []} subjects={subjects || []} />
     </div>
   );
 }

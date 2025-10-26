@@ -14,14 +14,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { PassportUpload } from "@/components/ui/passport-upload"
 
 interface StudentFormProps {
   schoolId: string
   classes: Array<{ id: string; name: string }>
+  parents: Array<{ id: string; first_name: string; last_name: string }>
   student?: any
 }
 
-export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
+export function StudentForm({ schoolId, classes, parents, student }: StudentFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,12 +45,28 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
     currentClassId: student?.current_class_id || "",
     admissionDate: student?.admission_date || new Date().toISOString().split("T")[0],
     status: student?.status || "active",
+    photoUrl: student?.photo_url || null,
+    parentId: student?.student_parents?.[0]?.parent_id || "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
+    }))
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handlePhotoUpload = (url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      photoUrl: url,
     }))
   }
 
@@ -79,6 +97,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
         current_class_id: formData.currentClassId || null,
         admission_date: formData.admissionDate,
         status: formData.status,
+        photo_url: formData.photoUrl,
       }
 
       if (student) {
@@ -88,9 +107,19 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
         if (updateError) throw updateError
       } else {
         // Create new student
-        const { error: insertError } = await supabase.from("students").insert(studentData)
+        const { data: newStudent, error: insertError } = await supabase.from("students").insert(studentData).select().single()
 
         if (insertError) throw insertError
+
+        // Create student-parent relationship
+        if (formData.parentId && newStudent) {
+          await supabase.from("student_parents").insert({
+            school_id: schoolId,
+            student_id: newStudent.id,
+            parent_id: formData.parentId,
+            relationship: "other",
+          })
+        }
       }
 
       router.push("/dashboard/students")
@@ -117,6 +146,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <PassportUpload url={formData.photoUrl} onUpload={handlePhotoUpload} />
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="admissionNumber">Admission Number *</Label>
@@ -196,7 +226,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
               <Label htmlFor="gender">Gender *</Label>
               <Select
                 value={formData.gender}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, gender: value }))}
+                onValueChange={(value) => handleSelectChange("gender", value)}
                 disabled={isLoading}
               >
                 <SelectTrigger>
@@ -212,7 +242,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
               <Label htmlFor="bloodGroup">Blood Group</Label>
               <Select
                 value={formData.bloodGroup}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, bloodGroup: value }))}
+                onValueChange={(value) => handleSelectChange("bloodGroup", value)}
                 disabled={isLoading}
               >
                 <SelectTrigger>
@@ -325,7 +355,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
               <Label htmlFor="currentClassId">Current Class</Label>
               <Select
                 value={formData.currentClassId}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, currentClassId: value }))}
+                onValueChange={(value) => handleSelectChange("currentClassId", value)}
                 disabled={isLoading}
               >
                 <SelectTrigger>
@@ -341,10 +371,29 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="parentId">Parent/Guardian</Label>
+              <Select
+                value={formData.parentId}
+                onValueChange={(value) => handleSelectChange("parentId", value)}
+                disabled={isLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a parent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parents.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.first_name} {p.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                onValueChange={(value) => handleSelectChange("status", value)}
                 disabled={isLoading}
               >
                 <SelectTrigger>

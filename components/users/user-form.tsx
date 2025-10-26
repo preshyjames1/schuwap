@@ -17,9 +17,11 @@ interface UserFormProps {
   schoolId: string
   userProfile?: any
   role: UserRole
+  classes: Array<{ id: string; name: string }>
+  subjects: Array<{ id: string; name: string }>
 }
 
-export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
+export function UserForm({ schoolId, userProfile, role, classes, subjects }: UserFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,12 +38,27 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
     occupation: userProfile?.parents?.[0]?.occupation || "",
     // Staff-specific fields
     role: userProfile?.staff?.[0]?.role || "",
+    photoUrl: userProfile?.photo_url || null,
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
+    }))
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handlePhotoUpload = (url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      photoUrl: url,
     }))
   }
 
@@ -60,6 +77,7 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
         phone: formData.phone,
         role: role,
         is_active: true,
+        avatar_url: formData.photoUrl,
       }
 
       let userId = userProfile?.id
@@ -153,11 +171,38 @@ export function UserForm({ schoolId, userProfile, role }: UserFormProps) {
   const renderForm = () => {
     switch (role) {
       case "teacher":
-        return <TeacherForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+        return (
+          <TeacherForm
+            formData={formData}
+            handleChange={handleChange}
+            handleSelectChange={handleSelectChange}
+            handlePhotoUpload={handlePhotoUpload}
+            isLoading={isLoading}
+            userProfile={userProfile}
+            classes={classes}
+            subjects={subjects}
+          />
+        )
       case "parent":
-        return <ParentForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+        return (
+          <ParentForm
+            formData={formData}
+            handleChange={handleChange}
+            handlePhotoUpload={handlePhotoUpload}
+            isLoading={isLoading}
+            userProfile={userProfile}
+          />
+        )
       case "staff":
-        return <StaffForm formData={formData} handleChange={handleChange} isLoading={isLoading} userProfile={userProfile} />
+        return (
+          <StaffForm
+            formData={formData}
+            handleChange={handleChange}
+            handlePhotoUpload={handlePhotoUpload}
+            isLoading={isLoading}
+            userProfile={userProfile}
+          />
+        )
       default:
         return null
     }
