@@ -135,8 +135,10 @@ export function ProfilePictureUpload({
     >
       {/* Avatar */}
       <div
-        className="relative rounded-full overflow-hidden bg-muted flex items-center justify-center"
-        style={{ width: size, height: size }}
+        className={cn(
+          "relative rounded-full overflow-hidden bg-muted flex items-center justify-center",
+          `w-[${size}px] h-[${size}px]`
+        )}
       >
         {preview ? (
           <Image
@@ -194,6 +196,8 @@ export function ProfilePictureUpload({
         className="hidden"
         onChange={handleChange}
         disabled={uploading}
+        aria-label="Upload profile picture"
+        title="Upload profile picture"
       />
 
       {/* Instructions */}
