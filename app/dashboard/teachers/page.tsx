@@ -44,7 +44,7 @@ export default async function TeachersPage() {
           <p className="text-muted-foreground">Manage all teachers in your school</p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/users/new">
+          <Link href="/dashboard/users/new?role=teacher">
             <Plus className="h-4 w-4 mr-2" />
             Add Teacher
           </Link>
@@ -107,7 +107,7 @@ export default async function TeachersPage() {
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">No teachers found</p>
               <Button asChild>
-                <Link href="/dashboard/users/new">Add your first teacher</Link>
+                <Link href="/dashboard/users/new?role=teacher">Add your first teacher</Link>
               </Button>
             </div>
           )}

@@ -107,7 +107,7 @@ export default async function ParentsPage() {
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">No parents found</p>
               <Button asChild>
-                <Link href="/dashboard/users/new">Add your first parent</Link>
+                <Link href="/dashboard/users/new?role=parent">Add your first parent</Link>
               </Button>
             </div>
           )}
