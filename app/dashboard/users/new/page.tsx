@@ -1,7 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { UserForm } from "@/components/users/user-form";
-import type { UserRole } from "@/lib/types/database";
+import { UserForm, type UserRole, type UserType } from "@/components/users/user-form";
+
+// Helper to determine the dashboard section based on role
+function getUserType(role: string): UserType {
+  if (role === 'student') return 'students';
+  if (role === 'teacher') return 'teachers';
+  if (role === 'parent') return 'parents';
+  return 'staff'; // Covers receptionist, accountant, librarian
+}
 
 export default async function NewUserPage({ searchParams }: { searchParams: { role: UserRole }}) {
   const supabase = await createClient();
@@ -21,15 +28,15 @@ export default async function NewUserPage({ searchParams }: { searchParams: { ro
   }
 
   const role = searchParams.role || "teacher";
+  const userType = getUserType(role);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Add New {role.charAt(0).toUpperCase() + role.slice(1)}</h2>
-        <p className="text-muted-foreground">Enter the user's information to create a new record</p>
-      </div>
-
-      <UserForm schoolId={profile.school_id} role={role} />
+      <UserForm 
+        schoolId={profile.school_id} 
+        userType={userType} 
+        defaultRole={role} 
+      />
     </div>
   );
 }

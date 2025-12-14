@@ -1,6 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { UserForm } from "@/components/users/user-form";
+import { UserForm, type UserType } from "@/components/users/user-form";
+
+function getUserType(role: string): UserType {
+  if (role === 'student') return 'students';
+  if (role === 'teacher') return 'teachers';
+  if (role === 'parent') return 'parents';
+  return 'staff'; 
+}
 
 export default async function EditUserPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -31,14 +38,15 @@ export default async function EditUserPage({ params }: { params: { id: string } 
     notFound();
   }
 
+  const userType = getUserType(userProfile.role);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Edit {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}</h2>
-        <p className="text-muted-foreground">Update the user's information</p>
-      </div>
-
-      <UserForm schoolId={profile.school_id} userProfile={userProfile} role={userProfile.role} />
+      <UserForm 
+        schoolId={profile.school_id} 
+        userProfile={userProfile} 
+        userType={userType}
+      />
     </div>
   );
 }
