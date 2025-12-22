@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +26,7 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClient() // Initialize Supabase client
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -40,234 +40,202 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
 
-    // Validation
+    // 1. Validation
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       setIsLoading(false)
       return
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters")
-      setIsLoading(false)
-      return
-    }
-
-    // Validate subdomain format
-    const subdomainRegex = /^[a-z0-9-]+$/
-    if (!subdomainRegex.test(formData.subdomain)) {
-      setError("Subdomain can only contain lowercase letters, numbers, and hyphens")
-      setIsLoading(false)
-      return
-    }
-
-    const supabase = createClient()
-
     try {
-      // Check if subdomain is available
-      const { data: existingSchool } = await supabase
-        .from("schools")
-        .select("id")
-        .eq("subdomain", formData.subdomain)
-        .single()
-
-      if (existingSchool) {
-        setError("This subdomain is already taken")
-        setIsLoading(false)
-        return
-      }
-
-      
-  const redirectUrl = process.env.NODE_ENV === 'production'
-   ? `https://schuwap.xyz/auth/callback`
-  : `http://localhost:3000/auth/callback`;
-
-
-      // Create auth user with metadata
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 2. Sign Up Request
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
             school_name: formData.schoolName,
             subdomain: formData.subdomain,
             phone: formData.phone,
+            role: "admin", // Default role for new school creator
           },
+          // IMPORTANT: Redirect to callback, passing onboarding as the next step
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         },
       })
 
-      if (authError) throw authError
-
-      // Check if email confirmation is required
-      if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
-        // Email already exists
-        setError("An account with this email already exists")
-        return
+      if (error) {
+        throw error
       }
 
-      // Redirect to onboarding (email confirmation is disabled)
-      router.push("/onboarding")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+      // 3. Conditional Redirect [THE FIX]
+      if (data.session) {
+        // Case A: Email confirmation is DISABLED. User is logged in immediately.
+        router.push("/onboarding")
+      } else {
+        // Case B: Email confirmation is ENABLED. User must check inbox.
+        router.push("/auth/sign-up-success")
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during sign up")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-6 md:p-10 bg-gradient-to-b from-blue-50 to-white">
-      <div className="w-full max-w-2xl">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <GraduationCap className="h-12 w-12 text-blue-600" />
-            <h1 className="text-2xl font-bold">Register Your School</h1>
-            <p className="text-sm text-muted-foreground">Start your 30-day free trial today</p>
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <div className="w-full max-w-lg">
+        <div className="flex flex-col items-center space-y-4 text-center mb-8">
+          <div className="flex items-center space-x-2">
+            <GraduationCap className="h-8 w-8 text-primary" />
+            <span className="text-2xl font-bold">Schuwap</span>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">School Registration</CardTitle>
-              <CardDescription>Create your school account and get started in minutes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSignUp}>
-                <div className="flex flex-col gap-6">
-                  {/* School Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold">School Information</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="grid gap-2">
-                        <Label htmlFor="schoolName">School Name *</Label>
-                        <Input
-                          id="schoolName"
-                          name="schoolName"
-                          placeholder="Kings College"
-                          required
-                          value={formData.schoolName}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="subdomain">Subdomain *</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id="subdomain"
-                            name="subdomain"
-                            placeholder="kingscollege"
-                            required
-                            value={formData.subdomain}
-                            onChange={handleChange}
-                            disabled={isLoading}
-                            className="lowercase"
-                          />
-                          <span className="text-sm text-muted-foreground whitespace-nowrap">.schuwap.xyz</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Admin Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold">Administrator Information</h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="grid gap-2">
-                        <Label htmlFor="firstName">First Name *</Label>
-                        <Input
-                          id="firstName"
-                          name="firstName"
-                          required
-                          value={formData.firstName}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="lastName">Last Name *</Label>
-                        <Input
-                          id="lastName"
-                          name="lastName"
-                          required
-                          value={formData.lastName}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="email">Email *</Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="admin@school.com"
-                          required
-                          value={formData.email}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          placeholder="+234 800 000 0000"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="password">Password *</Label>
-                        <Input
-                          id="password"
-                          name="password"
-                          type="password"
-                          required
-                          value={formData.password}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="confirmPassword">Confirm Password *</Label>
-                        <Input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type="password"
-                          required
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Creating account..." : "Create School Account"}
-                  </Button>
-                </div>
-                <div className="mt-4 text-center text-sm">
-                  Already have an account?{" "}
-                  <Link href="/auth/login" className="underline underline-offset-4">
-                    Sign in
-                  </Link>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          <h1 className="text-4xl font-bold tracking-tighter">Start your journey</h1>
+          <p className="text-muted-foreground">Create your school account to get started</p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Account</CardTitle>
+            <CardDescription>Enter your school details below to create your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      placeholder="John"
+                      required
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      placeholder="Doe"
+                      required
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="schoolName">School Name</Label>
+                  <Input
+                    id="schoolName"
+                    name="schoolName"
+                    placeholder="Acme Academy"
+                    required
+                    value={formData.schoolName}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="subdomain">School Subdomain</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="subdomain"
+                      name="subdomain"
+                      placeholder="acme"
+                      className="text-right"
+                      required
+                      value={formData.subdomain}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                    <span className="text-muted-foreground">.schuwap.xyz</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    required
+                    value={formData.phone}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      required
+                      value={formData.password}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type="password"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Creating account..." : "Create School Account"}
+              </Button>
+            </form>
+            <div className="mt-4 text-center text-sm">
+              Already have an account?{" "}
+              <Link href="/auth/login" className="underline underline-offset-4">
+                Sign in
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
