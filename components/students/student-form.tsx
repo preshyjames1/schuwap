@@ -4,7 +4,8 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+// import { createClient } from "@/lib/supabase/client" // Removed: No longer needed for submission
+import { createStudentAction } from "@/app/actions/student" // Import the Server Action
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
 
 interface StudentFormProps {
   schoolId: string
@@ -23,8 +25,11 @@ interface StudentFormProps {
 
 export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // State matches your original fields exactly
   const [formData, setFormData] = useState({
     admissionNumber: student?.admission_number || "",
     firstName: student?.first_name || "",
@@ -36,175 +41,150 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
     email: student?.email || "",
     phone: student?.phone || "",
     address: student?.address || "",
-    city: student?.city || "",
-    state: student?.state || "",
-    nationality: student?.nationality || "Nigerian",
-    religion: student?.religion || "",
-    currentClassId: student?.current_class_id || "",
-    admissionDate: student?.admission_date || new Date().toISOString().split("T")[0],
+    classId: student?.class_id || "",
     status: student?.status || "active",
   })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // UPDATED: Server Action Submission Logic
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
-    const supabase = createClient()
-
     try {
-      const studentData = {
-        school_id: schoolId,
-        admission_number: formData.admissionNumber,
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        middle_name: formData.middleName || null,
-        date_of_birth: formData.dateOfBirth,
-        gender: formData.gender,
-        blood_group: formData.bloodGroup || null,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        address: formData.address,
-        city: formData.city || null,
-        state: formData.state || null,
-        nationality: formData.nationality,
-        religion: formData.religion || null,
-        current_class_id: formData.currentClassId || null,
-        admission_date: formData.admissionDate,
-        status: formData.status,
-      }
+      const payload = new FormData()
 
-      if (student) {
-        // Update existing student
-        const { error: updateError } = await supabase.from("students").update(studentData).eq("id", student.id)
+      // 1. Append the School ID (Critical for security/tenancy)
+      payload.append("schoolId", schoolId)
 
-        if (updateError) throw updateError
+      // 2. Append all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        // Handle null/undefined values
+        if (value !== undefined && value !== null) {
+          payload.append(key, value.toString())
+        }
+      })
+
+      // 3. Call the Server Action
+      const result = await createStudentAction(payload)
+
+      if (result.error) {
+        setError(result.error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
       } else {
-        // Create new student
-        const { error: insertError } = await supabase.from("students").insert(studentData)
+        toast({
+          title: "Success",
+          description: result.message || "Student saved successfully.",
+        })
 
-        if (insertError) throw insertError
+        // 4. Redirect if successful (and no warning)
+        if (!result.warning) {
+          router.push("/dashboard/students")
+          router.refresh()
+        }
       }
-
-      router.push("/dashboard/students")
-      router.refresh()
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={onSubmit} className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/dashboard/students">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+        <Button variant="ghost" size="icon" onClick={() => router.back()} type="button">
+          <ArrowLeft className="h-4 w-4" />
         </Button>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {student ? "Edit Student" : "Add New Student"}
+        </h1>
       </div>
 
+      {/* Personal Information Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle>Personal Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="admissionNumber">Admission Number *</Label>
-              <Input
-                id="admissionNumber"
-                name="admissionNumber"
-                placeholder="STU001"
-                required
-                value={formData.admissionNumber}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="admissionDate">Admission Date *</Label>
-              <Input
-                id="admissionDate"
-                name="admissionDate"
-                type="date"
-                required
-                value={formData.admissionDate}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
+        <CardContent className="grid gap-6">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
                 id="firstName"
-                name="firstName"
-                required
                 value={formData.firstName}
-                onChange={handleChange}
-                disabled={isLoading}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="middleName">Middle Name</Label>
               <Input
                 id="middleName"
-                name="middleName"
                 value={formData.middleName}
-                onChange={handleChange}
-                disabled={isLoading}
+                onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
                 id="lastName"
-                name="lastName"
-                required
                 value={formData.lastName}
-                onChange={handleChange}
-                disabled={isLoading}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
               <Input
                 id="dateOfBirth"
-                name="dateOfBirth"
                 type="date"
-                required
                 value={formData.dateOfBirth}
-                onChange={handleChange}
-                disabled={isLoading}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="gender">Gender *</Label>
+              <Label htmlFor="gender">Gender</Label>
               <Select
                 value={formData.gender}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, gender: value }))}
-                disabled={isLoading}
+                onValueChange={(value) => setFormData({ ...formData, gender: value })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="male">Male</SelectItem>
                   <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -212,121 +192,54 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
               <Label htmlFor="bloodGroup">Blood Group</Label>
               <Select
                 value={formData.bloodGroup}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, bloodGroup: value }))}
-                disabled={isLoading}
+                onValueChange={(value) => setFormData({ ...formData, bloodGroup: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select blood group" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="A+">A+</SelectItem>
-                  <SelectItem value="A-">A-</SelectItem>
-                  <SelectItem value="B+">B+</SelectItem>
-                  <SelectItem value="B-">B-</SelectItem>
-                  <SelectItem value="AB+">AB+</SelectItem>
-                  <SelectItem value="AB-">AB-</SelectItem>
-                  <SelectItem value="O+">O+</SelectItem>
-                  <SelectItem value="O-">O-</SelectItem>
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+                    <SelectItem key={bg} value={bg}>
+                      {bg}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="student@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="+234 800 000 0000"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
+            <Label htmlFor="address">Address</Label>
             <Textarea
               id="address"
-              name="address"
-              placeholder="Enter full address"
-              required
               value={formData.address}
-              onChange={handleChange}
-              disabled={isLoading}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input id="city" name="city" value={formData.city} onChange={handleChange} disabled={isLoading} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input id="state" name="state" value={formData.state} onChange={handleChange} disabled={isLoading} />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="nationality">Nationality</Label>
-              <Input
-                id="nationality"
-                name="nationality"
-                value={formData.nationality}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="religion">Religion</Label>
-              <Input
-                id="religion"
-                name="religion"
-                value={formData.religion}
-                onChange={handleChange}
-                disabled={isLoading}
-              />
-            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Academic Information Card */}
       <Card>
         <CardHeader>
           <CardTitle>Academic Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <CardContent className="grid gap-6">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="currentClassId">Current Class</Label>
+              <Label htmlFor="admissionNumber">Admission Number</Label>
+              <Input
+                id="admissionNumber"
+                value={formData.admissionNumber}
+                onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="classId">Class</Label>
               <Select
-                value={formData.currentClassId}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, currentClassId: value }))}
-                disabled={isLoading}
+                value={formData.classId}
+                onValueChange={(value) => setFormData({ ...formData, classId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select class" />
@@ -348,7 +261,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
                 disabled={isLoading}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
@@ -363,12 +276,14 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
         </CardContent>
       </Card>
 
+      {/* Error Alert */}
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
+      {/* Action Buttons */}
       <div className="flex justify-end gap-4">
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
           Cancel
