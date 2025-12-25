@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-
+//nnnmnbnvvnbbmb
 export function createAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
