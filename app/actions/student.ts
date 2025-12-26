@@ -56,6 +56,28 @@ export async function createStudentAction(formData: FormData) {
   if (createError) {
     return { error: `Auth Creation Failed: ${createError.message}` }
   }
+const userId = authData.user.id
+
+  // --- NEW STEP: 4.5. Manually Create Profile ---
+  // This bridges the gap between Auth and Students table
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .insert({
+      id: userId, // This links it to the Auth user
+      role: 'student',
+      first_name: firstName,
+      last_name: lastName,
+      email: email, 
+      school_id: schoolId, // Ensure your profile table has this column, or remove it
+      // Add other profile fields if your schema requires them
+    })
+
+  if (profileError) {
+    // Clean up the auth user if profile creation fails
+    await supabaseAdmin.auth.admin.deleteUser(userId)
+    return { error: `Profile Creation Failed: ${profileError.message}` }
+  }
+  // ----------------------------------------------
 
   // 5. Insert into Database
   const { error: dbError } = await supabaseAdmin
