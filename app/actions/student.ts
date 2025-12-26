@@ -228,3 +228,128 @@ export async function updateStudentAction(formData: FormData, studentId: string)
   
   return { success: true, message: 'Student updated successfully' }
 }
+
+// ==========================================
+// 2. DELETE STUDENT ACTION
+// ==========================================
+
+export async function deleteStudentAction(studentId: string) {
+  const supabaseAdmin = createAdminClient()
+  const supabase = await createClient()
+
+  // 1. Verify Admin Session
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Unauthorized' }
+  }
+
+  if (!studentId) return { error: "Student ID is missing" }
+
+  // 2. Get the linked Auth User ID first
+  // We need this to delete their login account later
+  const { data: studentData, error: fetchError } = await supabaseAdmin
+    .from('students')
+    .select('user_id')
+    .eq('id', studentId)
+    .single()
+
+  if (fetchError) {
+    return { error: "Could not find student record to delete" }
+  }
+
+  const authUserId = studentData.user_id
+
+  // 3. Delete Student from Database
+  // We delete the student record first.
+  const { error: dbError } = await supabaseAdmin
+    .from('students')
+    .delete()
+    .eq('id', studentId)
+
+  if (dbError) {
+    return { error: `Database Delete Failed: ${dbError.message}` }
+  }
+
+  // 4. Delete User from Auth System (and Profile)
+  // This removes their login access and cleans up the 'auth.users' table
+  if (authUserId) {
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserId)
+    
+    if (authDeleteError) {
+      console.error("Auth delete failed:", authDeleteError)
+      // We return success because the student record is already gone, 
+      // but we log this so you know there's an orphaned auth user.
+      return { success: true, message: 'Student deleted, but Auth account removal failed.' }
+    }
+  }
+
+  revalidatePath('/dashboard/students')
+  return { success: true, message: 'Student deleted successfully' }
+}
+
+
+// ==========================================
+// 2. RESET PASSWORD STUDENT ACTION
+// ==========================================
+
+export async function resetStudentPasswordAction(studentId: string) {
+  const supabaseAdmin = createAdminClient()
+  const supabase = await createClient()
+
+  // 1. Verify Admin Session
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Unauthorized' }
+
+  // 2. Get Student Data
+  const { data: student, error: fetchError } = await supabaseAdmin
+    .from('students')
+    .select('user_id, email, first_name')
+    .eq('id', studentId)
+    .single()
+
+  if (fetchError || !student || !student.user_id) {
+    return { error: "Student record or linked account not found." }
+  }
+
+  // 3. Generate New Password
+  const newPassword = `Reset-${Math.random().toString(36).slice(-8)}`
+
+  // 4. Update Auth User
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+    student.user_id,
+    { password: newPassword }
+  )
+
+  if (updateError) {
+    return { error: `Password update failed: ${updateError.message}` }
+  }
+
+  // 5. Send Email
+  try {
+    const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/student/login`
+    await resend.emails.send({
+      from: 'Schuwap <send@schuwap.xyz>',
+      to: student.email,
+      subject: 'Password Reset - Schuwap',
+      html: `
+        <h1>Password Reset</h1>
+        <p>Hello ${student.first_name},</p>
+        <p>Your password has been reset by the school administrator.</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px;">
+          <p><strong>New Login Details:</strong></p>
+          <ul>
+            <li><strong>URL:</strong> <a href="${loginUrl}">${loginUrl}</a></li>
+            <li><strong>Email:</strong> ${student.email}</li>
+            <li><strong>New Password:</strong> ${newPassword}</li>
+          </ul>
+        </div>
+        <p>Please change this password after logging in.</p>
+      `,
+    })
+  } catch (err) {
+    console.error('Email failed:', err)
+    return { success: true, warning: `Password reset to: ${newPassword} (Email failed to send)` }
+  }
+
+  return { success: true, message: 'Password reset and emailed to student.' }
+}
