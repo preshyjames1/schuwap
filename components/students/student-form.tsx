@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-// import { createClient } from "@/lib/supabase/client" // Removed: No longer needed for submission
-import { createStudentAction } from "@/app/actions/student" // Import the Server Action
+// Import both actions
+import { createStudentAction, updateStudentAction } from "@/app/actions/student"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,13 +13,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
 import { useToast } from "@/components/ui/use-toast"
 
 interface StudentFormProps {
   schoolId: string
   classes: Array<{ id: string; name: string }>
-  student?: any
+  student?: any // This contains the data if we are in "Edit Mode"
 }
 
 export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
@@ -29,7 +27,7 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
-  // State matches your original fields exactly
+  // State initialization
   const [formData, setFormData] = useState({
     admissionNumber: student?.admission_number || "",
     firstName: student?.first_name || "",
@@ -45,7 +43,6 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
     status: student?.status || "active",
   })
 
-  // UPDATED: Server Action Submission Logic
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
@@ -54,20 +51,29 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
     try {
       const payload = new FormData()
 
-      // 1. Append the School ID (Critical for security/tenancy)
+      // 1. Append the School ID
       payload.append("schoolId", schoolId)
 
       // 2. Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        // Handle null/undefined values
         if (value !== undefined && value !== null) {
           payload.append(key, value.toString())
         }
       })
 
-      // 3. Call the Server Action
-      const result = await createStudentAction(payload)
+      let result;
 
+      // 3. DECIDE: Create or Update?
+      if (student?.id) {
+        // --- UPDATE MODE ---
+        // We pass the payload AND the specific Student ID
+        result = await updateStudentAction(payload, student.id)
+      } else {
+        // --- CREATE MODE ---
+        result = await createStudentAction(payload)
+      }
+
+      // 4. Handle Response
       if (result.error) {
         setError(result.error)
         toast({
@@ -78,17 +84,21 @@ export function StudentForm({ schoolId, classes, student }: StudentFormProps) {
       } else {
         toast({
           title: "Success",
-          description: result.message || "Student saved successfully.",
+          description: result.message || "Saved successfully.",
         })
 
-        // 4. Redirect if successful (and no warning)
-        if (!result.warning) {
-          router.push("/dashboard/students")
-          router.refresh()
-        }
+        // Redirect
+        router.push("/dashboard/students")
+        router.refresh()
       }
     } catch (err: any) {
+      console.error(err)
       setError(err.message || "An unexpected error occurred")
+      toast({
+          variant: "destructive",
+          title: "Error",
+          description: "An unexpected error occurred",
+      })
     } finally {
       setIsLoading(false)
     }
