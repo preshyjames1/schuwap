@@ -7,6 +7,9 @@ import { revalidatePath } from 'next/cache'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// ==========================================
+// 1. CREATE STUDENT ACTION
+// ==========================================
 export async function createStudentAction(formData: FormData) {
   const supabaseAdmin = createAdminClient()
   const supabase = await createClient()
@@ -53,37 +56,34 @@ export async function createStudentAction(formData: FormData) {
     },
   })
 
-  if (createError) {
-    return { error: `Auth Creation Failed: ${createError.message}` }
+  if (createError || !authData.user) {
+    return { error: `Auth Creation Failed: ${createError?.message || 'Unknown error'}` }
   }
-const userId = authData.user.id
 
-  // --- NEW STEP: 4.5. Manually Create Profile ---
-  // This bridges the gap between Auth and Students table
+  const userId = authData.user.id
+
+  // 4.5. Manually Create Profile (Bypassing Triggers)
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .insert({
-      id: userId, // This links it to the Auth user
+      id: userId,
       role: 'student',
       first_name: firstName,
       last_name: lastName,
-      email: email, 
-      school_id: schoolId, // Ensure your profile table has this column, or remove it
-      // Add other profile fields if your schema requires them
+      email: email,
+      school_id: schoolId,
     })
 
   if (profileError) {
-    // Clean up the auth user if profile creation fails
     await supabaseAdmin.auth.admin.deleteUser(userId)
     return { error: `Profile Creation Failed: ${profileError.message}` }
   }
-  // ----------------------------------------------
 
   // 5. Insert into Database
   const { error: dbError } = await supabaseAdmin
     .from('students')
     .insert({
-      user_id: authData.user.id,
+      user_id: userId,
       school_id: schoolId,
       first_name: firstName,
       last_name: lastName,
@@ -101,7 +101,7 @@ const userId = authData.user.id
 
   if (dbError) {
     // Rollback Auth user if DB insert fails
-    await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+    await supabaseAdmin.auth.admin.deleteUser(userId)
     return { error: `Database Insert Failed: ${dbError.message}` }
   }
 
@@ -109,7 +109,7 @@ const userId = authData.user.id
   const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/student/login`
   try {
     await resend.emails.send({
-      from: 'Schuwap <send@schuwap.xyz>', // CHANGE THIS to your verified sender
+      from: 'Schuwap <send@schuwap.xyz>',
       to: email,
       subject: 'Welcome to Schuwap - Student Portal Access',
       html: `
@@ -133,4 +133,98 @@ const userId = authData.user.id
 
   revalidatePath('/dashboard/students')
   return { success: true, message: 'Student created and login credentials sent.' }
+}
+
+
+// ==========================================
+// 2. UPDATE STUDENT ACTION
+// ==========================================
+export async function updateStudentAction(formData: FormData, studentId: string) {
+  const supabaseAdmin = createAdminClient()
+  const supabase = await createClient()
+
+  // 1. Verify Admin Session
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return { error: 'Unauthorized' }
+  }
+
+  // 2. Extract Fields
+  // Note: We don't update schoolId typically as that shouldn't change
+  const email = formData.get('email') as string
+  const firstName = formData.get('firstName') as string
+  const lastName = formData.get('lastName') as string
+  const middleName = formData.get('middleName') as string
+  const admissionNumber = formData.get('admissionNumber') as string
+  const classId = formData.get('classId') as string
+  const dob = formData.get('dateOfBirth') as string
+  const gender = formData.get('gender') as string
+  const phone = formData.get('phone') as string
+  const address = formData.get('address') as string
+  const status = formData.get('status') as string
+
+  if (!studentId) return { error: "Student ID is missing" }
+
+  // 3. Get the linked Auth User ID first
+  const { data: studentData, error: fetchError } = await supabaseAdmin
+    .from('students')
+    .select('user_id')
+    .eq('id', studentId)
+    .single()
+
+  if (fetchError || !studentData) {
+    return { error: "Could not find student record to update" }
+  }
+
+  const authUserId = studentData.user_id
+
+  // 4. Update Auth Email (Only if it exists and changed)
+  if (authUserId && email) {
+    const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+      authUserId,
+      { email: email, email_confirm: true }
+    )
+    if (authUpdateError) {
+      console.error("Auth update failed:", authUpdateError)
+    }
+  }
+
+  // 5. Update Profile (Syncing changes to public.profiles)
+  if (authUserId) {
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        email: email
+      })
+      .eq('id', authUserId)
+  }
+
+  // 6. Update Student Database Record
+  const { error: dbError } = await supabaseAdmin
+    .from('students')
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      middle_name: middleName || null,
+      email: email,
+      admission_number: admissionNumber,
+      class_id: classId,
+      date_of_birth: dob || null,
+      gender: gender,
+      phone: phone || null,
+      address: address || null,
+      status: status,
+    })
+    .eq('id', studentId)
+
+  if (dbError) {
+    return { error: `Update Failed: ${dbError.message}` }
+  }
+
+  revalidatePath('/dashboard/students')
+  revalidatePath(`/dashboard/students/${studentId}`)
+  
+  return { success: true, message: 'Student updated successfully' }
 }
