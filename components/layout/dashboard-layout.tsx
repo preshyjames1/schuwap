@@ -31,6 +31,7 @@ import {
   User,
   Heart,
   Briefcase,
+  ChevronUp, // 1. Import ChevronUp
 } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
@@ -127,6 +128,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </span>
                     <span className="text-xs text-muted-foreground">{profile?.email}</span>
                   </div>
+                  {/* 2. Added ChevronUp Icon with ml-auto to push it to the right */}
+                  <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
