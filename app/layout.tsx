@@ -30,8 +30,9 @@ export default function RootLayout({
       suppressHydrationWarning={true}>
          
         <Suspense fallback={null}>{children}
-          <Toaster />
+          
         </Suspense>
+        <Toaster />
         <Analytics />
       </body>
     </html>
