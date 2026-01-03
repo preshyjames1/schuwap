@@ -353,3 +353,76 @@ export async function resetStudentPasswordAction(studentId: string) {
 
   return { success: true, message: 'Password reset and emailed to student.' }
 }
+
+
+// --- Bulk Actions ---
+
+export async function bulkPromoteStudents(studentIds: string[], newClassId: string) {
+  try {
+    const supabase = createClient()
+    
+    const { error } = await (await supabase)
+      .from('student_profiles')
+      .update({ class_id: newClassId })
+      .in('id', studentIds)
+
+    if (error) throw error
+
+    revalidatePath('/dashboard/students')
+    return { success: true, message: 'Students promoted successfully' }
+  } catch (error) {
+    console.error('Error promoting students:', error)
+    return { success: false, error: 'Failed to promote students' }
+  }
+}
+
+export async function bulkDeleteStudents(studentIds: string[]) {
+  try {
+    const supabase = createAdminClient() // Use Admin client for deletions to bypass some restrictions if needed
+    
+    // Delete from auth.users (this usually cascades to profiles if set up, 
+    // but if not, delete from profiles first)
+    
+    // 1. Delete from public.student_profiles
+    const { error: profileError } = await supabase
+      .from('student_profiles')
+      .delete()
+      .in('id', studentIds)
+
+    if (profileError) throw profileError
+
+    // Note: If your system links profiles to Auth Users, you might need to delete the Auth Users too.
+    // For now, we will focus on the profile deletion.
+
+    revalidatePath('/dashboard/students')
+    return { success: true, message: 'Students deleted successfully' }
+  } catch (error) {
+    console.error('Error deleting students:', error)
+    return { success: false, error: 'Failed to delete students' }
+  }
+}
+
+export async function bulkResetPasswords(studentIds: string[]) {
+  try {
+    const supabase = createAdminClient()
+    
+    // For security, usually we trigger a password reset email. 
+    // However, for admin dashboards, often we set a temporary default password.
+    // Here is an example of setting a default password "Student@123".
+    
+    // We need the User IDs (Auth IDs), not just Profile IDs. 
+    // Assuming student_profiles.id is the same as auth.users.id (common pattern):
+    
+    const updates = studentIds.map(id => 
+      supabase.auth.admin.updateUserById(id, { password: 'Student@123' })
+    )
+    
+    await Promise.all(updates)
+
+    revalidatePath('/dashboard/students')
+    return { success: true, message: 'Passwords reset to "Student@123"' }
+  } catch (error) {
+    console.error('Error resetting passwords:', error)
+    return { success: false, error: 'Failed to reset passwords' }
+  }
+}
