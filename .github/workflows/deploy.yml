@@ -9,7 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+# This tells the job to use these secrets as environment variables
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      
     permissions:
       contents: read
 
